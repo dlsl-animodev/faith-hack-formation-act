@@ -34,7 +34,7 @@ export function HostClient() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/events/active");
+      const res = await fetch("/api/events/active", { cache: "no-store" });
       const data: unknown = await res.json();
       if (
         typeof data === "object" &&
@@ -64,17 +64,26 @@ export function HostClient() {
     }
   }, []);
 
+  const waiting = !payload?.active;
   useEffect(() => {
     void refresh();
-    const id = setInterval(() => void refresh(), 5000);
+    const ms = waiting ? 1500 : 5000;
+    const id = setInterval(() => void refresh(), ms);
     return () => clearInterval(id);
+  }, [refresh, waiting]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, [refresh]);
 
   const eventCode = payload?.active ? payload.eventCode : undefined;
 
   useEffect(() => {
-    if (!eventCode) return;
-    const socket = getSocket({ eventSubscriber: eventCode });
+    const socket = getSocket();
 
     const onStarted = () => {
       setEventEnded(false);
@@ -106,7 +115,7 @@ export function HostClient() {
       socket.off(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
       socket.off(SOCKET_EVENTS.GROUP_SUBMITTED, onSubmitted);
     };
-  }, [eventCode, refresh]);
+  }, [refresh]);
 
   const { pieces, cols, rows } = useMemo(() => {
     const groups = payload?.active && Array.isArray(payload.groups) ? payload.groups : [];
@@ -148,6 +157,7 @@ export function HostClient() {
   return (
     <HostVisualizer
       mode={mode === "puzzle" ? "puzzle" : "qr"}
+      eventCode={eventCode}
       joinUrl={joinUrl}
       participantCount={participantCount}
       pieces={piecesWithLock}

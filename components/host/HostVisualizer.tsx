@@ -8,6 +8,7 @@ import type { PuzzlePiece } from "@/types";
 
 interface HostVisualizerProps {
   mode: "qr" | "puzzle" | "complete";
+  eventCode?: string | null;
   joinUrl: string;
   participantCount: number;
   pieces: PuzzlePiece[];
@@ -20,6 +21,7 @@ interface HostVisualizerProps {
 
 export function HostVisualizer({
   mode,
+  eventCode,
   joinUrl,
   participantCount,
   pieces,
@@ -44,7 +46,11 @@ export function HostVisualizer({
             exit={{ opacity: 0 }}
             className="relative z-10 mx-auto max-w-4xl"
           >
-            <QRDisplay joinUrl={joinUrl} participantCount={participantCount} />
+            <QRDisplay
+              eventCode={eventCode}
+              joinUrl={joinUrl}
+              participantCount={participantCount}
+            />
           </motion.div>
         )}
 
