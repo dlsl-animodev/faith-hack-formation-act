@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSocket } from "@/lib/socket/client";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { useFaithHackRealtime } from "@/hooks/useFaithHackRealtime";
 import { PhaseControls } from "@/components/admin/PhaseControls";
 import { EventHistory } from "@/components/admin/EventHistory";
 import { Button } from "@/components/ui/Button";
@@ -80,21 +79,17 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
     return () => clearInterval(id);
   }, [refresh]);
 
-  useEffect(() => {
-    const socket = getSocket({ adminSecret });
-    const onCount = (c: { count: number }) => {
-      setStats((s) => (s ? { ...s, participantCount: c.count } : s));
-    };
-    const onStarted = () => {
-      void refresh();
-    };
-    socket.on(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
-    socket.on(SOCKET_EVENTS.EVENT_STARTED, onStarted);
-    return () => {
-      socket.off(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
-      socket.off(SOCKET_EVENTS.EVENT_STARTED, onStarted);
-    };
-  }, [adminSecret, refresh]);
+  useFaithHackRealtime(
+    {
+      onParticipantCount: (c) => {
+        setStats((s) => (s ? { ...s, participantCount: c.count } : s));
+      },
+      onEventStarted: () => {
+        void refresh();
+      },
+    },
+    true
+  );
 
   const startEvent = async () => {
     setBusy(true);
@@ -230,7 +225,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
                 <p>{stats?.groupsSubmitted ?? 0}</p>
               </div>
               <div>
-                <p className="text-[var(--text-muted)]">participants (socket)</p>
+                <p className="text-[var(--text-muted)]">participants (live)</p>
                 <p>{stats?.participantCount ?? 0}</p>
               </div>
             </div>
