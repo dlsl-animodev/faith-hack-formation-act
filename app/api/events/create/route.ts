@@ -35,16 +35,33 @@ export async function POST(request: Request) {
     return jsonErr(insertErr?.message ?? "Failed to create event", 500);
   }
 
-  const { error: stateErr } = await supabase
-    .from("app_state")
+  const now = new Date().toISOString();
+  /** Supersede prior active events (new row above is always inserted; others move to history). */
+  const { error: deactivateErr } = await supabase
+    .from("events")
     .update({
+      is_active: false,
+      ended_at: now,
+      updated_at: now,
+    })
+    .eq("is_active", true)
+    .neq("id", ev.id);
+
+  if (deactivateErr) {
+    return jsonErr(deactivateErr.message, 500);
+  }
+
+  const { error: stateErr } = await supabase.from("app_state").upsert(
+    {
+      id: 1,
       current_phase: 1,
       total_groups: 0,
       groups_submitted: 0,
       active_event_code: eventCode,
       updated_at: new Date().toISOString(),
-    })
-    .eq("id", 1);
+    },
+    { onConflict: "id" }
+  );
 
   if (stateErr) {
     return jsonErr(stateErr.message, 500);

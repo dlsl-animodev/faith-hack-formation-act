@@ -26,7 +26,21 @@ export async function GET() {
       .from("events")
       .select("id, event_code, is_active")
       .eq("event_code", code)
-      .single();
+      .maybeSingle();
+
+    if (!ev) {
+      await supabase
+        .from("app_state")
+        .update({
+          active_event_code: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", 1);
+      return jsonOk({
+        active: false as const,
+        phase: state?.current_phase ?? 1,
+      });
+    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const joinUrl = `${appUrl.replace(/\/$/, "")}/join/${code}`;
