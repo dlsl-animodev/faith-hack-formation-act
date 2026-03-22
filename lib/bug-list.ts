@@ -1,0 +1,18 @@
+export const BUG_LIST = [
+  { id: "b01", label: "Overthinking / Analysis paralysis" },
+  { id: "b02", label: "Doom-scrolling / Social media overuse" },
+  { id: "b03", label: "Skipping prayer / quiet time" },
+  { id: "b04", label: "Procrastination on priorities" },
+  { id: "b05", label: "Comparison with others" },
+  { id: "b06", label: "Burnout / Emotional exhaustion" },
+  { id: "b07", label: "Fear of failure or judgment" },
+  { id: "b08", label: "Neglecting rest / sleep deprivation" },
+  { id: "b09", label: "Shallow relationships / isolation" },
+  { id: "b10", label: "Loss of purpose or direction" },
+  { id: "b11", label: "Spiritual dryness / disconnection" },
+  { id: "b12", label: "Imposter syndrome" },
+  { id: "b13", label: "Resentment or unforgiveness" },
+  { id: "b14", label: "Anxiety about the future" },
+  { id: "b15", label: "Distraction during important moments" },
+  { id: "b16", label: "Neglecting physical health" },
+] as const;
