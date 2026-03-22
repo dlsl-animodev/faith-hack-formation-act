@@ -2,7 +2,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { jsonErr, jsonOk } from "@/lib/api-response";
 import { submitGroupBodySchema } from "@/lib/schemas";
 import { performGroupDebugSubmit } from "@/lib/perform-group-submit";
-import { getSocketServer } from "@/lib/socket/server-io";
 
 interface RouteParams {
   params: { groupId: string };
@@ -22,8 +21,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   try {
     const supabase = createAdminClient();
-    const io = getSocketServer() ?? null;
-    const result = await performGroupDebugSubmit(supabase, io, {
+    const result = await performGroupDebugSubmit(supabase, {
       sessionId: parsed.data.sessionId,
       groupId,
       summary: parsed.data.summary,
