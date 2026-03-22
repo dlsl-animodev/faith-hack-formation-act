@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyAdminRequest } from "@/lib/admin-request";
 import { jsonErr, jsonOk } from "@/lib/api-response";
 import { generateEventCode } from "@/lib/event-code";
-import { getSocketServer } from "@/lib/socket/server-io";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { realtimeBroadcastFire } from "@/lib/realtime/broadcast-server";
+import { SOCKET_EVENTS } from "@/lib/realtime/events";
 
 export async function POST(request: Request) {
   if (!verifyAdminRequest(request)) {
@@ -74,10 +73,9 @@ export async function POST(request: Request) {
     joinUrl,
   };
 
-  const io = getSocketServer();
-  io?.emit(SOCKET_EVENTS.EVENT_STARTED, payload);
-  io?.emit(SOCKET_EVENTS.PARTICIPANT_COUNT, { count: 0 });
-  io?.emit(SOCKET_EVENTS.PHASE_CHANGED, { phase: 1 });
+  await realtimeBroadcastFire(SOCKET_EVENTS.EVENT_STARTED, payload);
+  await realtimeBroadcastFire(SOCKET_EVENTS.PARTICIPANT_COUNT, { count: 0 });
+  await realtimeBroadcastFire(SOCKET_EVENTS.PHASE_CHANGED, { phase: 1 });
 
   return jsonOk(payload);
 }
