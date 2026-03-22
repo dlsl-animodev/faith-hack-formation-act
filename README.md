@@ -1,19 +1,19 @@
 # Faith Hack
 
-Structured spiritual formation for small groups (e.g. IT/engineering students), framed with a developer metaphor: bugs, debugging, deployment, and restoration. This repo is a **Next.js 14** app with a **custom Node server** that serves the App Router and **Socket.IO** on the same HTTP port.
+Structured spiritual formation for small groups (e.g. IT/engineering students), framed with a developer metaphor: bugs, debugging, deployment, and restoration. This repo is a **Next.js 14** app (App Router) designed to run on **Vercel** or any Node host. **Realtime** uses **Supabase Realtime Broadcast** (no custom WebSocket server).
 
 ## Stack
 
 - **Framework:** Next.js 14 (App Router), TypeScript (strict)
 - **UI:** Tailwind CSS, Framer Motion, `qrcode.react`
 - **State:** Zustand
-- **Data:** Supabase (PostgreSQL); API routes and the socket server use the **service role** client for writes
-- **Realtime:** Socket.IO (attached to the same `http.Server` as Next)
+- **Data:** Supabase (PostgreSQL); API routes use the **service role** client for writes
+- **Realtime:** Supabase Realtime **Broadcast** on channel `fh_public` (see below)
 
 ## Prerequisites
 
 - Node.js 18+ (recommended 20+)
-- A [Supabase](https://supabase.com) project
+- A [Supabase](https://supabase.com) project with **Realtime enabled** and **Broadcast** allowed for clients using the anon key (default in hosted Supabase for public channels—confirm in **Project Settings → API → Realtime** if messages do not arrive)
 
 ## Setup
 
@@ -33,15 +33,11 @@ Structured spiritual formation for small groups (e.g. IT/engineering students), 
    SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
 
    NEXT_PUBLIC_APP_URL=http://localhost:3000
-   NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
-   PORT=3000
 
    ADMIN_SECRET=your-long-random-secret
    ```
 
-   Optional:
-
-   - **`BIND_HOST`** — HTTP bind address. If unset, Node chooses a default that works with `http://localhost:PORT` on most machines (including Windows Git Bash). Use `BIND_HOST=0.0.0.0` to listen on all IPv4 interfaces.
+   On **Vercel**, set the same variables in the project settings. Set **`NEXT_PUBLIC_APP_URL`** to your production URL (including `https://`) so QR codes and join links are correct.
 
 3. **Database**
 
@@ -49,24 +45,20 @@ Structured spiritual formation for small groups (e.g. IT/engineering students), 
 
 ## Scripts
 
-| Command            | Description |
-|--------------------|-------------|
-| `npm run dev`      | Custom server + Next in dev (`tsx watch server.ts`) |
-| `npm run build`    | Production Next build |
-| `npm run start`    | Production custom server (`NODE_ENV=production tsx server.ts`) |
-| `npm run lint`     | ESLint |
-| `npm run typecheck`| `tsc --noEmit` |
-
-**Important:** Use `npm run dev` / `npm run start`, not `next dev` / `next start`, so Socket.IO shares the process with Next and `getSocketServer()` works from API routes.
-
-On Windows **cmd**, `npm run start` may not set `NODE_ENV`; use PowerShell, Git Bash, or run `set NODE_ENV=production` (cmd) before `npx tsx server.ts`.
+| Command             | Description        |
+|---------------------|--------------------|
+| `npm run dev`       | Next.js dev server |
+| `npm run build`     | Production build   |
+| `npm run start`     | `next start`       |
+| `npm run lint`      | ESLint             |
+| `npm run typecheck` | `tsc --noEmit`     |
 
 ## App routes
 
 | Path | Role |
 |------|------|
 | `/` | Landing links (admin / host) |
-| `/admin/login` | Admin password → signed cookie + `sessionStorage` for socket auth |
+| `/admin/login` | Admin password → signed cookie + `sessionStorage` for `x-admin-secret` on API calls |
 | `/admin` | Facilitator controls, event history |
 | `/host` | Projector: QR until phase 5, then puzzle grid |
 | `/join/[eventCode]` | Participant entry from QR |
@@ -97,7 +89,7 @@ The **event code** looks like `FH-2025-A4X9`. The **join link** (encoded in the 
 
 ### Starting the event
 
-1. On **`/admin`**, click **Start new event**. That creates a new code, updates global state, and broadcasts to **`/host`** so the **QR code and join URL** refresh.
+1. On **`/admin`**, click **Start new event**. That creates a new code, updates global state, and broadcasts so **`/host`** can show the **QR code and join URL**.
 2. The host screen shows a **large QR** and the **same URL as text** (for manual entry). The live **participant count** updates as people join.
 
 ### How participants join (QR)
@@ -111,13 +103,13 @@ They should **stay on that participant page** for the whole workshop (one tab).
 
 ### Phases (what everyone does)
 
-The facilitator moves the room forward from **`/admin`**. Participants follow automatically on their phones.
+The facilitator moves the room forward from **`/admin`** (phase changes use **`POST /api/admin/phase`**). Participants follow via Realtime + polling.
 
 | Phase | What participants see | What facilitator does |
 |------|------------------------|-------------------------|
 | **1 — Formation** | Team name, color, “find your teammates” | When groups are settled, click **Advance phase** |
 | **2 — Bug checklist** | Private checklist (1–5 items + optional custom); **Save** | When ready, **Advance phase** |
-| **3 — Sharing** | Each person sees a **numbered prompt** for discussion | You facilitate conversation in the room; when done, click **End sharing → Phase 4** (not the generic advance) |
+| **3 — Sharing** | Each person sees a **numbered prompt** for discussion | You facilitate conversation in the room; when done, click **End sharing → Phase 4** |
 | **4 — Deploy** | **Team leader** (position 1) writes a short summary and **holds “Deploy” for 3 seconds**; others see a waiting state | Wait for each group to submit; you can **Advance phase** to **5** when you want the **projector puzzle** |
 | **5 — Puzzle** | Small “assembly” view; their piece **locks** when their group has submitted | **`/host`** shows the big puzzle; pieces animate in as groups deploy. Stay here until all teams have submitted |
 | **6 — Completion** | A **completion message** for their group; cinematic end | Happens **automatically** when the **last** group submits (phase goes to 6 and messages are sent). No extra button |
@@ -131,26 +123,28 @@ The facilitator moves the room forward from **`/admin`**. Participants follow au
 - When **all groups** have submitted in phase 4/5, the app moves to **phase 6** and delivers messages.
 - To **close the event** for everyone (QR invalid, “session ended” on phones, host back to waiting):
 
-  On **`/admin`**, click **End event** and confirm. That deactivates the event, saves a **summary** to the database, resets global phase/counters, and notifies connected clients.
+  On **`/admin`**, click **End event** and confirm. That deactivates the event, saves a **summary** to the database, resets global phase/counters, and broadcasts to clients.
 
 - Past runs are listed under **`/admin` → Event history** (read-only, paginated).
 
 ## API notes
 
-Next.js cannot use two different dynamic segment names under the same path segment. Event APIs therefore use:
-
 - `GET /api/events/validate/[eventCode]` — validate an active event code
 - `POST /api/events/end/[eventId]` — end event (admin auth required)
+- `POST /api/admin/phase` — `{ "action": "advance" | "endSharing" }` (admin auth required)
 
 Other handlers live under `app/api/` (create event, active state, session join, bootstrap, bugs, group submit, history, admin login).
 
+## Deploying on Vercel
+
+1. Connect the repo and set **environment variables** (see above).
+2. **Build command:** `npm run build`; **Output:** Next.js default.
+3. Ensure **Supabase Realtime** works from the browser (anon key). If live updates fail, check Supabase **Realtime** settings and that **`NEXT_PUBLIC_SUPABASE_URL`** / **`NEXT_PUBLIC_SUPABASE_ANON_KEY`** match your project.
+
 ## Troubleshooting
 
-- **`ERR_CONNECTION_REFUSED` on `localhost` while the server logs “ready”**  
-  Do not bind using the shell’s `HOSTNAME` (Git Bash on Windows sets it to the machine name). This project uses optional **`BIND_HOST`** only; leaving it unset avoids that pitfall.
-
-- **Sockets not updating**  
-  Ensure `NEXT_PUBLIC_SOCKET_URL` matches the URL you open in the browser (same origin as the custom server, typically `http://localhost:3000` in development).
+- **Live updates not working** — Confirm Realtime is enabled and the browser can open a WebSocket to Supabase. The app also **polls** `/api/events/active` on the host as a fallback.
+- **Wrong QR / join URL in production** — Set **`NEXT_PUBLIC_APP_URL`** to your deployed site URL (e.g. `https://your-app.vercel.app`).
 
 ## License
 
