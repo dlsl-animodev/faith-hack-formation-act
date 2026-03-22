@@ -11,13 +11,20 @@ import { registerSubmissionHandler } from "./handlers/submission.handler";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = parseInt(process.env.PORT ?? "3000", 10);
-const hostname = process.env.HOSTNAME ?? "0.0.0.0";
+/** Bind address for HTTP (do not use OS HOSTNAME — on Windows it breaks localhost). */
+const bindHost = process.env.BIND_HOST ?? "0.0.0.0";
+const nextHostname = "localhost";
 
 export async function startServer(): Promise<void> {
-  const app = next({ dev });
+  const app = next({ dev, hostname: nextHostname, port });
   const handle = app.getRequestHandler();
 
-  await app.prepare();
+  try {
+    await app.prepare();
+  } catch (err) {
+    console.error("Next app.prepare() failed:", err);
+    throw err;
+  }
 
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url ?? "/", true);
@@ -61,7 +68,7 @@ export async function startServer(): Promise<void> {
 
   await new Promise<void>((resolve, reject) => {
     httpServer.once("error", reject);
-    httpServer.listen(port, hostname, () => resolve());
+    httpServer.listen(port, bindHost, () => resolve());
   });
 
   console.log(`Faith Hack ready at http://localhost:${port}`);
