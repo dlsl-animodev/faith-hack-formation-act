@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { getSocket } from "@/lib/socket/client";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { useFaithHackRealtime } from "@/hooks/useFaithHackRealtime";
 import { usePhaseStore } from "@/store/usePhaseStore";
 import { useGroupStore } from "@/store/useGroupStore";
 import { useEventShellStore } from "@/store/useEventShellStore";
@@ -122,78 +121,39 @@ export function ParticipantShell({ sessionId }: ParticipantShellProps) {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!bootstrap?.eventCode) return;
-    const socket = getSocket();
-    socket.emit(
-      SOCKET_EVENTS.JOIN_SESSION,
-      { sessionId, eventCode: bootstrap.eventCode },
-      (err: string | null) => {
-        if (err) {
-          console.warn("[faith-hack] socket join:", err);
+  useFaithHackRealtime(
+    {
+      onPhaseChanged: (p) => {
+        setPhase((p.phase as PhaseNumber) ?? 1);
+      },
+      onEventEnded: () => {
+        eventShell.setEventEnded(true);
+      },
+      onParticipantCount: (c) => {
+        eventShell.setParticipantCount(c.count);
+      },
+      onGroupSubmitted: (payload) => {
+        if (typeof payload.submittedCount === "number") {
+          setGroupsSubmitted(payload.submittedCount);
         }
-      }
-    );
-
-    const onPhase = (p: { phase: number }) => {
-      setPhase((p.phase as PhaseNumber) ?? 1);
-    };
-    const onEnded = () => {
-      eventShell.setEventEnded(true);
-    };
-    const onCount = (c: { count: number }) => {
-      eventShell.setParticipantCount(c.count);
-    };
-    const onGroupSub = (payload: {
-      groupId: string;
-      cols: number;
-      rows: number;
-      groupIndex: number;
-      submittedCount?: number;
-      totalGroups?: number;
-    }) => {
-      if (typeof payload.submittedCount === "number") {
-        setGroupsSubmitted(payload.submittedCount);
-      }
-      if (typeof payload.totalGroups === "number") {
-        setTotalGroups(payload.totalGroups);
-      }
-      if (payload.groupId === group.groupId) {
-        setPuzzleLocked(true);
-      }
-    };
-    const onAssigned = (p: {
-      memberCount: number;
-    }) => {
-      setMemberCount(p.memberCount);
-    };
-    const onCompletion = (m: { title: string; body: string }) => {
-      eventShell.setCompletion(m.title, m.body);
-    };
-
-    socket.on(SOCKET_EVENTS.PHASE_CHANGED, onPhase);
-    socket.on(SOCKET_EVENTS.EVENT_ENDED, onEnded);
-    socket.on(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
-    socket.on(SOCKET_EVENTS.GROUP_SUBMITTED, onGroupSub);
-    socket.on(SOCKET_EVENTS.GROUP_ASSIGNED, onAssigned);
-    socket.on(SOCKET_EVENTS.COMPLETION_MESSAGE, onCompletion);
-
-    return () => {
-      socket.off(SOCKET_EVENTS.PHASE_CHANGED, onPhase);
-      socket.off(SOCKET_EVENTS.EVENT_ENDED, onEnded);
-      socket.off(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
-      socket.off(SOCKET_EVENTS.GROUP_SUBMITTED, onGroupSub);
-      socket.off(SOCKET_EVENTS.GROUP_ASSIGNED, onAssigned);
-      socket.off(SOCKET_EVENTS.COMPLETION_MESSAGE, onCompletion);
-    };
-  }, [
-    bootstrap?.eventCode,
-    sessionId,
-    setPhase,
-    eventShell,
-    group.groupId,
-    setMemberCount,
-  ]);
+        if (typeof payload.totalGroups === "number") {
+          setTotalGroups(payload.totalGroups);
+        }
+        if (payload.groupId === group.groupId) {
+          setPuzzleLocked(true);
+        }
+      },
+      onGroupAssigned: (p) => {
+        if (p.groupId !== group.groupId) return;
+        setMemberCount(p.memberCount);
+      },
+      onCompletionMessage: (m) => {
+        if (m.groupId != null && m.groupId !== group.groupId) return;
+        eventShell.setCompletion(m.title, m.body);
+      },
+    },
+    Boolean(bootstrap?.eventCode)
+  );
 
   if (loading) {
     return (

@@ -1,8 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
-import { getSocket } from "@/lib/socket/client";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 interface PhaseControlsProps {
@@ -10,20 +8,56 @@ interface PhaseControlsProps {
 }
 
 export function PhaseControls({ adminSecret }: PhaseControlsProps) {
-  const emit = useCallback(
-    (event: string) => {
-      const socket = getSocket({ adminSecret });
-      socket.emit(event);
+  const [busy, setBusy] = useState(false);
+
+  const run = useCallback(
+    async (action: "advance" | "endSharing") => {
+      setBusy(true);
+      try {
+        const res = await fetch("/api/admin/phase", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-admin-secret": adminSecret,
+          },
+          body: JSON.stringify({ action }),
+        });
+        const data: unknown = await res.json();
+        if (
+          typeof data === "object" &&
+          data &&
+          "success" in data &&
+          !(data as { success: boolean }).success
+        ) {
+          const err =
+            "error" in data && typeof (data as { error: unknown }).error === "string"
+              ? (data as { error: string }).error
+              : "Phase update failed";
+          console.warn("[faith-hack]", err);
+        }
+      } finally {
+        setBusy(false);
+      }
     },
     [adminSecret]
   );
 
   return (
     <div className="flex flex-wrap gap-3">
-      <Button type="button" variant="ghost" onClick={() => emit(SOCKET_EVENTS.ADMIN_ADVANCE_PHASE)}>
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={busy}
+        onClick={() => void run("advance")}
+      >
         Advance phase
       </Button>
-      <Button type="button" variant="warm" onClick={() => emit(SOCKET_EVENTS.ADMIN_END_SHARING)}>
+      <Button
+        type="button"
+        variant="warm"
+        disabled={busy}
+        onClick={() => void run("endSharing")}
+      >
         End sharing → Phase 4
       </Button>
     </div>

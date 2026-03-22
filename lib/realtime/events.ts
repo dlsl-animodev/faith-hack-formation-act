@@ -1,5 +1,5 @@
 export const SOCKET_EVENTS = {
-  // Server → Client
+  // Server → Client (Supabase Realtime Broadcast)
   SESSION_JOINED: "session:joined",
   GROUP_ASSIGNED: "group:assigned",
   PHASE_CHANGED: "phase:changed",
@@ -11,7 +11,7 @@ export const SOCKET_EVENTS = {
   EVENT_ENDED: "event:ended",
   PARTICIPANT_COUNT: "event:participantCount",
 
-  // Client → Server
+  // Legacy names (use HTTP APIs instead)
   JOIN_SESSION: "session:join",
   SUBMIT_DEBUG: "submit:debug",
   ADMIN_ADVANCE_PHASE: "admin:advancePhase",

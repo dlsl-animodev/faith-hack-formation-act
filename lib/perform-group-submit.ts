@@ -1,6 +1,6 @@
-import type { Server } from "socket.io";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { realtimeBroadcastFire } from "@/lib/realtime/broadcast-server";
+import { SOCKET_EVENTS } from "@/lib/realtime/events";
 import { completionMessageForGroupIndex } from "@/lib/messages";
 import { sanitizeText } from "@/lib/sanitize";
 import { buildPuzzleGrid } from "@/lib/puzzle";
@@ -13,7 +13,6 @@ export interface SubmitDebugInput {
 
 export async function performGroupDebugSubmit(
   supabase: SupabaseClient,
-  io: Server | null | undefined,
   input: SubmitDebugInput
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const summary = sanitizeText(input.summary ?? "", 8000);
@@ -128,8 +127,8 @@ export async function performGroupDebugSubmit(
 
   const eventCode = eventRow?.event_code ?? appState?.active_event_code;
 
-  if (io && eventCode) {
-    io.to(`event:${eventCode}`).emit(SOCKET_EVENTS.GROUP_SUBMITTED, {
+  if (eventCode) {
+    await realtimeBroadcastFire(SOCKET_EVENTS.GROUP_SUBMITTED, {
       groupId: group.id,
       groupName: group.name,
       groupColor: group.color,
@@ -141,7 +140,7 @@ export async function performGroupDebugSubmit(
       totalGroups: totalGroups,
     });
 
-    io.to(`event:${eventCode}`).emit(SOCKET_EVENTS.PUZZLE_PIECE_LOCKED, {
+    await realtimeBroadcastFire(SOCKET_EVENTS.PUZZLE_PIECE_LOCKED, {
       groupId: group.id,
       groupIndex,
       cols: grid.cols,
@@ -158,9 +157,9 @@ export async function performGroupDebugSubmit(
       })
       .eq("id", 1);
 
-    if (io && eventCode) {
-      io.to(`event:${eventCode}`).emit(SOCKET_EVENTS.ALL_GROUPS_SUBMITTED, {});
-      io.to(`event:${eventCode}`).emit(SOCKET_EVENTS.PHASE_CHANGED, { phase: 6 });
+    if (eventCode) {
+      await realtimeBroadcastFire(SOCKET_EVENTS.ALL_GROUPS_SUBMITTED, {});
+      await realtimeBroadcastFire(SOCKET_EVENTS.PHASE_CHANGED, { phase: 6 });
     }
 
     const { data: allGroups } = await supabase
@@ -168,18 +167,16 @@ export async function performGroupDebugSubmit(
       .select("id, completion_message")
       .eq("event_id", group.event_id);
 
-    if (io) {
-      for (const g of allGroups ?? []) {
-        if (!g.completion_message) continue;
-        const lines = g.completion_message.split("\n\n");
-        const title = lines[0] ?? "";
-        const body = lines.slice(1).join("\n\n");
-        io.to(`group:${g.id}`).emit(SOCKET_EVENTS.COMPLETION_MESSAGE, {
-          groupId: g.id,
-          title,
-          body,
-        });
-      }
+    for (const g of allGroups ?? []) {
+      if (!g.completion_message) continue;
+      const lines = g.completion_message.split("\n\n");
+      const title = lines[0] ?? "";
+      const body = lines.slice(1).join("\n\n");
+      await realtimeBroadcastFire(SOCKET_EVENTS.COMPLETION_MESSAGE, {
+        groupId: g.id,
+        title,
+        body,
+      });
     }
   }
 

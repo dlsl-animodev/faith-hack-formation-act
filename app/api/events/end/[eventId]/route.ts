@@ -2,8 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyAdminRequest } from "@/lib/admin-request";
 import { jsonErr, jsonOk } from "@/lib/api-response";
 import type { EventSummary } from "@/types";
-import { getSocketServer } from "@/lib/socket/server-io";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { realtimeBroadcastFire } from "@/lib/realtime/broadcast-server";
+import { SOCKET_EVENTS } from "@/lib/realtime/events";
 
 interface RouteParams {
   params: { eventId: string };
@@ -101,9 +101,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       return jsonErr(stErr.message, 500);
     }
 
-    const io = getSocketServer();
-    io?.emit(SOCKET_EVENTS.EVENT_ENDED, { eventCode: ev.event_code });
-    io?.emit(SOCKET_EVENTS.PARTICIPANT_COUNT, { count: 0 });
+    await realtimeBroadcastFire(SOCKET_EVENTS.EVENT_ENDED, {
+      eventCode: ev.event_code,
+    });
+    await realtimeBroadcastFire(SOCKET_EVENTS.PARTICIPANT_COUNT, { count: 0 });
 
     return jsonOk({ ended: true as const });
   } catch (e) {
