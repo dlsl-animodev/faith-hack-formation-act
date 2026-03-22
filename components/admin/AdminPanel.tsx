@@ -37,7 +37,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/events/active");
+      const res = await fetch("/api/events/active", { cache: "no-store" });
       const data: unknown = await res.json();
       if (
         typeof data === "object" &&
@@ -166,11 +166,29 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
     }
   };
 
+  const liveEventCode = stats?.eventCode ?? null;
+  const ongoing = Boolean(eventId && liveEventCode);
+
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-10 text-[var(--text-primary)]">
-      <header className="space-y-2">
-        <p className="font-mono text-xs text-[var(--text-muted)]">faith_hack // admin</p>
-        <h1 className="font-display text-4xl">Control room</h1>
+      <header className="space-y-4">
+        <div className="space-y-2">
+          <p className="font-mono text-xs text-[var(--text-muted)]">faith_hack // admin</p>
+          <h1 className="font-display text-4xl">Control room</h1>
+        </div>
+        {ongoing ? (
+          <div
+            className="flex flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+            aria-live="polite"
+          >
+            <p className="font-mono text-xs uppercase tracking-wide text-[var(--accent-warm)]">
+              Ongoing event
+            </p>
+            <p className="font-mono text-2xl font-semibold tracking-[0.25em] text-[var(--accent-primary)]">
+              {liveEventCode}
+            </p>
+          </div>
+        ) : null}
       </header>
 
       <div className="flex gap-2 border-b border-[var(--border)] pb-2 font-mono text-sm">
