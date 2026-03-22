@@ -1,11 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyAdminRequest } from "@/lib/admin-request";
 import { jsonErr, jsonOk } from "@/lib/api-response";
 import { joinSessionBodySchema } from "@/lib/schemas";
 import { assignSessionToGroup, getGroupMemberCount } from "@/lib/groups";
 import { syncTotalGroupsForEvent } from "@/lib/app-state-sync";
-import { getSocketServer } from "@/lib/socket/server-io";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { realtimeBroadcastFire } from "@/lib/realtime/broadcast-server";
+import { SOCKET_EVENTS } from "@/lib/realtime/events";
 import { sanitizeText } from "@/lib/sanitize";
 
 export async function POST(request: Request) {
@@ -61,9 +60,16 @@ export async function POST(request: Request) {
       .select("id", { count: "exact", head: true })
       .eq("event_id", ev.id);
 
-    const io = getSocketServer();
-    io?.to(`event:${eventCode}`).emit(SOCKET_EVENTS.PARTICIPANT_COUNT, {
+    await realtimeBroadcastFire(SOCKET_EVENTS.PARTICIPANT_COUNT, {
       count: pCount ?? 0,
+    });
+
+    await realtimeBroadcastFire(SOCKET_EVENTS.GROUP_ASSIGNED, {
+      groupId: assignment.groupId,
+      groupName: assignment.groupName,
+      groupColor: assignment.groupColor,
+      position: assignment.position,
+      memberCount,
     });
 
     return jsonOk({
