@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSocket } from "@/lib/socket/client";
-import { SOCKET_EVENTS } from "@/lib/socket/events";
+import { useFaithHackRealtime } from "@/hooks/useFaithHackRealtime";
 import { buildPuzzleGrid } from "@/lib/puzzle";
 import type { PuzzlePiece } from "@/types";
 import { HostVisualizer } from "@/components/host/HostVisualizer";
@@ -82,40 +81,29 @@ export function HostClient() {
 
   const eventCode = payload?.active ? payload.eventCode : undefined;
 
-  useEffect(() => {
-    const socket = getSocket();
-
-    const onStarted = () => {
-      setEventEnded(false);
-      void refresh();
-    };
-    const onEnded = () => {
-      setEventEnded(true);
-      setParticipantCount(0);
-      void refresh();
-    };
-    const onCount = (c: { count: number }) => setParticipantCount(c.count);
-    const onSubmitted = (p: { groupId: string; submittedCount?: number }) => {
-      setLockedIds((prev) => {
-        const n = new Set(prev);
-        n.add(p.groupId);
-        return n;
-      });
-      void refresh();
-    };
-
-    socket.on(SOCKET_EVENTS.EVENT_STARTED, onStarted);
-    socket.on(SOCKET_EVENTS.EVENT_ENDED, onEnded);
-    socket.on(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
-    socket.on(SOCKET_EVENTS.GROUP_SUBMITTED, onSubmitted);
-
-    return () => {
-      socket.off(SOCKET_EVENTS.EVENT_STARTED, onStarted);
-      socket.off(SOCKET_EVENTS.EVENT_ENDED, onEnded);
-      socket.off(SOCKET_EVENTS.PARTICIPANT_COUNT, onCount);
-      socket.off(SOCKET_EVENTS.GROUP_SUBMITTED, onSubmitted);
-    };
-  }, [refresh]);
+  useFaithHackRealtime(
+    {
+      onEventStarted: () => {
+        setEventEnded(false);
+        void refresh();
+      },
+      onEventEnded: () => {
+        setEventEnded(true);
+        setParticipantCount(0);
+        void refresh();
+      },
+      onParticipantCount: (c) => setParticipantCount(c.count),
+      onGroupSubmitted: (p) => {
+        setLockedIds((prev) => {
+          const n = new Set(prev);
+          n.add(p.groupId);
+          return n;
+        });
+        void refresh();
+      },
+    },
+    true
+  );
 
   const { pieces, cols, rows } = useMemo(() => {
     const groups = payload?.active && Array.isArray(payload.groups) ? payload.groups : [];
