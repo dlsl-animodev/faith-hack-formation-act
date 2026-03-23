@@ -13,6 +13,48 @@ export async function POST(request: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const supabase = createAdminClient();
 
+  const { data: stateRow } = await supabase
+    .from("app_state")
+    .select("active_event_code")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const activeCode = stateRow?.active_event_code;
+  if (activeCode) {
+    const { data: currentEv } = await supabase
+      .from("events")
+      .select("id, is_active")
+      .eq("event_code", activeCode)
+      .maybeSingle();
+    if (currentEv?.is_active) {
+      return jsonErr(
+        "An event is already in progress. End it before starting a new one.",
+        409
+      );
+    }
+    await supabase
+      .from("app_state")
+      .update({
+        active_event_code: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", 1);
+  }
+
+  const { data: orphanActive } = await supabase
+    .from("events")
+    .select("id")
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (orphanActive) {
+    return jsonErr(
+      "An event is already in progress. End it before starting a new one.",
+      409
+    );
+  }
+
   let eventCode = generateEventCode();
   for (let attempt = 0; attempt < 8; attempt++) {
     const { data: existing } = await supabase
@@ -32,22 +74,6 @@ export async function POST(request: Request) {
 
   if (insertErr || !ev) {
     return jsonErr(insertErr?.message ?? "Failed to create event", 500);
-  }
-
-  const now = new Date().toISOString();
-  /** Supersede prior active events (new row above is always inserted; others move to history). */
-  const { error: deactivateErr } = await supabase
-    .from("events")
-    .update({
-      is_active: false,
-      ended_at: now,
-      updated_at: now,
-    })
-    .eq("is_active", true)
-    .neq("id", ev.id);
-
-  if (deactivateErr) {
-    return jsonErr(deactivateErr.message, 500);
   }
 
   const { error: stateErr } = await supabase.from("app_state").upsert(

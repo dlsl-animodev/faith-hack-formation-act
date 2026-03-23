@@ -25,6 +25,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
   const [eventId, setEventId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageIsError, setMessageIsError] = useState(false);
 
   const headers = useCallback(
     () => ({
@@ -92,8 +93,10 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
   );
 
   const startEvent = async () => {
+    if (eventId) return;
     setBusy(true);
     setMessage(null);
+    setMessageIsError(false);
     try {
       const res = await fetch("/api/events/create", {
         method: "POST",
@@ -108,6 +111,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
         (data as { success: boolean }).success
       ) {
         setMessage("Event started — host display updated.");
+        setMessageIsError(false);
         void refresh();
       } else {
         const err =
@@ -118,6 +122,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
             ? (data as { error: string }).error
             : "Failed";
         setMessage(err);
+        setMessageIsError(true);
       }
     } finally {
       setBusy(false);
@@ -132,6 +137,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
     if (!window.confirm("End this event for everyone? This cannot be undone.")) return;
     setBusy(true);
     setMessage(null);
+    setMessageIsError(false);
     try {
       const res = await fetch(`/api/events/end/${eventId}`, {
         method: "POST",
@@ -145,6 +151,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
         (data as { success: boolean }).success
       ) {
         setMessage("Event ended. Summary saved.");
+        setMessageIsError(false);
         void refresh();
       } else {
         const err =
@@ -155,6 +162,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
             ? (data as { error: string }).error
             : "Failed";
         setMessage(err);
+        setMessageIsError(true);
       }
     } finally {
       setBusy(false);
@@ -234,7 +242,16 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
           <Card className="space-y-4">
             <p className="font-mono text-xs text-[var(--text-muted)]">orchestration</p>
             <div className="flex flex-wrap gap-3">
-              <Button type="button" disabled={busy} onClick={() => void startEvent()}>
+              <Button
+                type="button"
+                disabled={busy || !!eventId}
+                title={
+                  eventId
+                    ? "End the current event before starting another."
+                    : undefined
+                }
+                onClick={() => void startEvent()}
+              >
                 Start new event
               </Button>
               <Button type="button" variant="ghost" disabled={busy || !eventId} onClick={() => void endEvent()}>
@@ -242,7 +259,17 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
               </Button>
             </div>
             <PhaseControls adminSecret={adminSecret} />
-            {message && <p className="font-mono text-xs text-[var(--accent-success)]">{message}</p>}
+            {message && (
+              <p
+                className={`font-mono text-xs ${
+                  messageIsError
+                    ? "text-[var(--accent-warm)]"
+                    : "text-[var(--accent-success)]"
+                }`}
+              >
+                {message}
+              </p>
+            )}
           </Card>
         </div>
       )}
