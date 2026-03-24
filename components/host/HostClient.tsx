@@ -32,9 +32,13 @@ export function HostClient() {
   const [eventEnded, setEventEnded] = useState(false);
 
   const refresh = useCallback(async () => {
+    console.log("[HostClient] refresh() called");
     try {
+      console.log("[HostClient] Fetching /api/events/active...");
       const res = await fetch("/api/events/active", { cache: "no-store" });
+      console.log("[HostClient] Response status:", res.status);
       const data: unknown = await res.json();
+      console.log("[HostClient] Full API response:", data);
       if (
         typeof data === "object" &&
         data &&
@@ -43,8 +47,11 @@ export function HostClient() {
         "data" in data
       ) {
         const p = (data as { data: ActivePayload }).data;
+        console.log("[HostClient] Parsed payload:", p);
+        console.log("[HostClient] Setting payload (active=" + p.active + ")");
         setPayload(p);
         if (typeof p.participantCount === "number") {
+          console.log("[HostClient] Setting participantCount:", p.participantCount);
           setParticipantCount(p.participantCount);
         }
         if (p.active && Array.isArray(p.groups)) {
@@ -52,14 +59,18 @@ export function HostClient() {
           for (const g of p.groups) {
             if (g.submitted) next.add(g.id);
           }
+          console.log("[HostClient] Setting lockedIds from submitted groups:", Array.from(next));
           setLockedIds(next);
         }
         if (!p.active) {
+          console.log("[HostClient] Event not active, clearing lockedIds");
           setLockedIds(new Set());
         }
+      } else {
+        console.error("[HostClient] Invalid API response format:", data);
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error("[HostClient] Fetch error:", e);
     }
   }, []);
 
@@ -91,6 +102,12 @@ export function HostClient() {
         setEventEnded(true);
         setParticipantCount(0);
         void refresh();
+      },
+      onStateReset: () => {
+        setPayload(null);
+        setParticipantCount(0);
+        setLockedIds(new Set());
+        setEventEnded(false);
       },
       onParticipantCount: (c) => setParticipantCount(c.count),
       onGroupSubmitted: (p) => {
