@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FH_REALTIME_CHANNEL } from "./constants";
 
+let warnedDevSkip = false;
+
 /**
  * Broadcasts one message on the shared Realtime channel (works from Vercel serverless).
  * Failures are logged and swallowed so API routes still succeed after DB writes.
@@ -9,6 +11,19 @@ export async function realtimeBroadcastFire(
   event: string,
   payload: unknown
 ): Promise<void> {
+  // In Next.js dev, creating server-side websocket channels can recurse through
+  // the bundled ws layer and crash with async_hooks stack overflows.
+  // Local UX still works via polling endpoints.
+  if (process.env.NODE_ENV !== "production") {
+    if (!warnedDevSkip) {
+      warnedDevSkip = true;
+      console.warn(
+        "[faith-hack] Skipping server realtime websocket broadcast in development to avoid ws/async_hooks recursion.",
+      );
+    }
+    return;
+  }
+
   try {
     const supabase = createAdminClient();
     const channel = supabase.channel(FH_REALTIME_CHANNEL, {
