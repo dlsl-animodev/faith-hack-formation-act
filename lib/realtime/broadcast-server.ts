@@ -16,18 +16,42 @@ export async function realtimeBroadcastFire(
     });
 
     await new Promise<void>((resolve, reject) => {
-      const to = setTimeout(() => {
+      let settled = false;
+
+      const fail = (error: Error, shouldUnsubscribe = false) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(to);
+        if (shouldUnsubscribe) {
+          try {
+            channel.unsubscribe();
+          } catch {
+            /* ignore */
+          }
+        }
+        reject(error);
+      };
+
+      const succeed = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(to);
         try {
           channel.unsubscribe();
         } catch {
           /* ignore */
         }
-        reject(new Error("Realtime subscribe timeout"));
+        resolve();
+      };
+
+      const to = setTimeout(() => {
+        fail(new Error("Realtime subscribe timeout"), true);
       }, 15_000);
 
       channel.subscribe((status, err) => {
+        if (settled) return;
+
         if (status === "SUBSCRIBED") {
-          clearTimeout(to);
           void channel
             .send({
               type: "broadcast",
@@ -35,20 +59,10 @@ export async function realtimeBroadcastFire(
               payload,
             })
             .then(() => {
-              try {
-                channel.unsubscribe();
-              } catch {
-                /* ignore */
-              }
-              resolve();
+              succeed();
             })
             .catch((e) => {
-              try {
-                channel.unsubscribe();
-              } catch {
-                /* ignore */
-              }
-              reject(e instanceof Error ? e : new Error(String(e)));
+              fail(e instanceof Error ? e : new Error(String(e)), true);
             });
           return;
         }
@@ -57,13 +71,8 @@ export async function realtimeBroadcastFire(
           status === "TIMED_OUT" ||
           status === "CLOSED"
         ) {
-          clearTimeout(to);
-          try {
-            channel.unsubscribe();
-          } catch {
-            /* ignore */
-          }
-          reject(err ?? new Error(`Realtime channel: ${status}`));
+          // Avoid recursion: CLOSED/ERROR can be triggered by unsubscribe itself.
+          fail(err ?? new Error(`Realtime channel: ${status}`));
         }
       });
     });

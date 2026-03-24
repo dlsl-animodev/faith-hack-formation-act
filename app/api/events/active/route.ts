@@ -7,11 +7,14 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data: state, error } = await supabase
       .from("app_state")
-      .select("current_phase, active_event_code, total_groups, groups_submitted")
+      .select("*")
       .eq("id", 1)
       .single();
 
-    console.log("[API /events/active] app_state query result:", { state, error });
+    console.log("[API /events/active] app_state query result:", {
+      state,
+      error,
+    });
 
     if (error) {
       console.error("[API /events/active] app_state query error:", error);
@@ -20,9 +23,11 @@ export async function GET() {
 
     const code = state?.active_event_code;
     console.log("[API /events/active] active_event_code from app_state:", code);
-    
+
     if (!code) {
-      console.log("[API /events/active] No active event code, returning inactive payload");
+      console.log(
+        "[API /events/active] No active event code, returning inactive payload",
+      );
       return jsonOk({
         active: false as const,
         phase: state?.current_phase ?? 1,
@@ -45,7 +50,9 @@ export async function GET() {
     console.log("[API /events/active] Event lookup result:", ev);
 
     if (!ev) {
-      console.log("[API /events/active] Event not found, clearing app_state active_event_code");
+      console.log(
+        "[API /events/active] Event not found, clearing app_state active_event_code",
+      );
       await supabase
         .from("app_state")
         .update({
@@ -81,7 +88,7 @@ export async function GET() {
         .order("created_at", { ascending: true });
       groups = gRows ?? [];
       console.log("[API /events/active] Groups fetched:", groups);
-      
+
       const { count } = await supabase
         .from("sessions")
         .select("id", { count: "exact", head: true })
@@ -101,8 +108,11 @@ export async function GET() {
       groups: groups ?? [],
       participantCount,
     };
-    
-    console.log("[API /events/active] Returning active event payload:", responsePayload);
+
+    console.log(
+      "[API /events/active] Returning active event payload:",
+      responsePayload,
+    );
     return jsonOk(responsePayload);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server error";

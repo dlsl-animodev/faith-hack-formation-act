@@ -32,7 +32,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
       "Content-Type": "application/json",
       "x-admin-secret": adminSecret,
     }),
-    [adminSecret]
+    [adminSecret],
   );
 
   const refresh = useCallback(async () => {
@@ -63,7 +63,10 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
               typeof p.participantCount === "number" ? p.participantCount : 0,
             eventCode: typeof p.eventCode === "string" ? p.eventCode : null,
           };
-          console.log("[AdminPanel] Event is ACTIVE. Setting:", { newEventId, newStats });
+          console.log("[AdminPanel] Event is ACTIVE. Setting:", {
+            newEventId,
+            newStats,
+          });
           setEventId(newEventId);
           setStats(newStats);
         } else {
@@ -117,7 +120,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
         });
       },
     },
-    true
+    true,
   );
 
   const startEvent = async () => {
@@ -142,7 +145,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
       console.log("[AdminPanel] Create event response status:", res.status);
       const data: unknown = await res.json();
       console.log("[AdminPanel] Create event response:", data);
-      
+
       if (
         typeof data === "object" &&
         data &&
@@ -153,7 +156,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
         setMessage("Event started — host display updated.");
         setMessageIsError(false);
         console.log("[AdminPanel] Waiting 500ms before calling refresh()");
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
         console.log("[AdminPanel] Calling refresh() after successful creation");
         void refresh();
       } else {
@@ -178,7 +181,8 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
       setMessage("No active event.");
       return;
     }
-    if (!window.confirm("End this event for everyone? This cannot be undone.")) return;
+    if (!window.confirm("End this event for everyone? This cannot be undone."))
+      return;
     setBusy(true);
     setMessage(null);
     setMessageIsError(false);
@@ -220,7 +224,9 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-10 text-[var(--text-primary)]">
       <header className="space-y-4">
         <div className="space-y-2">
-          <p className="font-mono text-xs text-[var(--text-muted)]">faith_hack // admin</p>
+          <p className="font-mono text-xs text-[var(--text-muted)]">
+            faith_hack // admin
+          </p>
           <h1 className="font-display text-4xl">Control room</h1>
         </div>
         {ongoing ? (
@@ -258,15 +264,21 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
       {tab === "live" && (
         <div className="space-y-6">
           <Card className="space-y-4">
-            <p className="font-mono text-xs text-[var(--text-muted)]">live_stats</p>
+            <p className="font-mono text-xs text-[var(--text-muted)]">
+              live_stats
+            </p>
             <div className="grid gap-3 font-mono text-sm sm:grid-cols-2">
               <div>
                 <p className="text-[var(--text-muted)]">phase</p>
-                <p className="text-xl text-[var(--accent-warm)]">{stats?.phase ?? "—"}</p>
+                <p className="text-xl text-[var(--accent-warm)]">
+                  {stats?.phase ?? "—"}
+                </p>
               </div>
               <div>
                 <p className="text-[var(--text-muted)]">event_code</p>
-                <p className="text-xl text-[var(--accent-primary)]">{stats?.eventCode ?? "—"}</p>
+                <p className="text-xl text-[var(--accent-primary)]">
+                  {stats?.eventCode ?? "—"}
+                </p>
               </div>
               <div>
                 <p className="text-[var(--text-muted)]">groups</p>
@@ -284,7 +296,9 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
           </Card>
 
           <Card className="space-y-4">
-            <p className="font-mono text-xs text-[var(--text-muted)]">orchestration</p>
+            <p className="font-mono text-xs text-[var(--text-muted)]">
+              orchestration
+            </p>
             <div className="flex flex-wrap gap-3">
               <Button
                 type="button"
@@ -298,7 +312,12 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
               >
                 Start new event
               </Button>
-              <Button type="button" variant="ghost" disabled={busy || !eventId} onClick={() => void endEvent()}>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy || !eventId}
+                onClick={() => void endEvent()}
+              >
                 End event
               </Button>
             </div>
