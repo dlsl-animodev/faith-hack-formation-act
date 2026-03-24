@@ -9,6 +9,7 @@ export const SOCKET_EVENTS = {
   PUZZLE_PIECE_LOCKED: "puzzle:pieceLocked",
   EVENT_STARTED: "event:started",
   EVENT_ENDED: "event:ended",
+  STATE_RESET: "state:reset",
   PARTICIPANT_COUNT: "event:participantCount",
 
   // Legacy names (use HTTP APIs instead)

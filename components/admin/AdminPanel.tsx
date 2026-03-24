@@ -36,9 +36,13 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
   );
 
   const refresh = useCallback(async () => {
+    console.log("[AdminPanel] refresh() called");
     try {
+      console.log("[AdminPanel] Fetching /api/events/active...");
       const res = await fetch("/api/events/active", { cache: "no-store" });
+      console.log("[AdminPanel] Response status:", res.status);
       const data: unknown = await res.json();
+      console.log("[AdminPanel] Full API response:", data);
       if (
         typeof data === "object" &&
         data &&
@@ -47,9 +51,10 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
         "data" in data
       ) {
         const p = (data as { data: Record<string, unknown> }).data;
+        console.log("[AdminPanel] Parsed payload:", p);
         if (p.active) {
-          setEventId(typeof p.eventId === "string" ? p.eventId : null);
-          setStats({
+          const newEventId = typeof p.eventId === "string" ? p.eventId : null;
+          const newStats = {
             phase: typeof p.phase === "number" ? p.phase : 1,
             totalGroups: typeof p.totalGroups === "number" ? p.totalGroups : 0,
             groupsSubmitted:
@@ -57,8 +62,12 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
             participantCount:
               typeof p.participantCount === "number" ? p.participantCount : 0,
             eventCode: typeof p.eventCode === "string" ? p.eventCode : null,
-          });
+          };
+          console.log("[AdminPanel] Event is ACTIVE. Setting:", { newEventId, newStats });
+          setEventId(newEventId);
+          setStats(newStats);
         } else {
+          console.log("[AdminPanel] Event is INACTIVE. Clearing state.");
           setEventId(null);
           setStats({
             phase: typeof p.phase === "number" ? p.phase : 1,
@@ -68,15 +77,21 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
             eventCode: null,
           });
         }
+      } else {
+        console.error("[AdminPanel] Invalid API response format:", data);
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error("[AdminPanel] Fetch error:", e);
     }
   }, []);
 
   useEffect(() => {
+    console.log("[AdminPanel] useEffect: Setting up polling interval (4000ms)");
     void refresh();
-    const id = setInterval(() => void refresh(), 4000);
+    const id = setInterval(() => {
+      console.log("[AdminPanel] Polling refresh() called");
+      void refresh();
+    }, 4000);
     return () => clearInterval(id);
   }, [refresh]);
 
@@ -88,30 +103,58 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
       onEventStarted: () => {
         void refresh();
       },
+      onEventEnded: () => {
+        void refresh();
+      },
+      onStateReset: (p) => {
+        setEventId(null);
+        setStats({
+          phase: p.phase,
+          totalGroups: p.totalGroups,
+          groupsSubmitted: p.groupsSubmitted,
+          participantCount: p.participantCount,
+          eventCode: p.eventCode,
+        });
+      },
     },
     true
   );
 
   const startEvent = async () => {
-    if (eventId) return;
+    console.log("[AdminPanel] startEvent() called, eventId:", eventId);
+    if (eventId) {
+      console.log("[AdminPanel] Event already active, aborting");
+      return;
+    }
+    console.log("[AdminPanel] Starting event creation request");
+    console.log("[AdminPanel] adminSecret value:", adminSecret);
+    console.log("[AdminPanel] Headers being sent:", JSON.stringify(headers()));
     setBusy(true);
     setMessage(null);
     setMessageIsError(false);
     try {
+      console.log("[AdminPanel] Fetching /api/events/create");
       const res = await fetch("/api/events/create", {
         method: "POST",
         headers: headers(),
         body: JSON.stringify({}),
       });
+      console.log("[AdminPanel] Create event response status:", res.status);
       const data: unknown = await res.json();
+      console.log("[AdminPanel] Create event response:", data);
+      
       if (
         typeof data === "object" &&
         data &&
         "success" in data &&
         (data as { success: boolean }).success
       ) {
+        console.log("[AdminPanel] Event created successfully");
         setMessage("Event started — host display updated.");
         setMessageIsError(false);
+        console.log("[AdminPanel] Waiting 500ms before calling refresh()");
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log("[AdminPanel] Calling refresh() after successful creation");
         void refresh();
       } else {
         const err =
@@ -121,6 +164,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
           typeof (data as { error: unknown }).error === "string"
             ? (data as { error: string }).error
             : "Failed";
+        console.error("[AdminPanel] Event creation failed:", err);
         setMessage(err);
         setMessageIsError(true);
       }
@@ -258,7 +302,7 @@ export function AdminPanel({ adminSecret }: AdminPanelProps) {
                 End event
               </Button>
             </div>
-            <PhaseControls adminSecret={adminSecret} />
+            <PhaseControls adminSecret={adminSecret} onPhaseUpdate={refresh} />
             {message && (
               <p
                 className={`font-mono text-xs ${

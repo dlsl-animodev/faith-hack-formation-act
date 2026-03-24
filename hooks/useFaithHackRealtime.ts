@@ -8,6 +8,13 @@ import { SOCKET_EVENTS } from "@/lib/realtime/events";
 export interface FaithHackRealtimeHandlers {
   onPhaseChanged?: (p: { phase: number }) => void;
   onEventEnded?: () => void;
+  onStateReset?: (p: {
+    phase: number;
+    totalGroups: number;
+    groupsSubmitted: number;
+    participantCount: number;
+    eventCode: string | null;
+  }) => void;
   onParticipantCount?: (c: { count: number }) => void;
   onEventStarted?: () => void;
   onGroupSubmitted?: (p: {
@@ -64,6 +71,15 @@ export function useFaithHackRealtime(
       ref.current.onPhaseChanged?.({ phase: Number(p.phase) ?? 1 })
     );
     sub(SOCKET_EVENTS.EVENT_ENDED, () => ref.current.onEventEnded?.());
+    sub(SOCKET_EVENTS.STATE_RESET, (p) =>
+      ref.current.onStateReset?.({
+        phase: Number(p.phase) ?? 1,
+        totalGroups: Number(p.totalGroups) ?? 0,
+        groupsSubmitted: Number(p.groupsSubmitted) ?? 0,
+        participantCount: Number(p.participantCount) ?? 0,
+        eventCode: p.eventCode != null ? String(p.eventCode) : null,
+      })
+    );
     sub(SOCKET_EVENTS.PARTICIPANT_COUNT, (p) =>
       ref.current.onParticipantCount?.({ count: Number(p.count) ?? 0 })
     );
