@@ -105,6 +105,13 @@ export async function POST(request: Request, { params }: RouteParams) {
       eventCode: ev.event_code,
     });
     await realtimeBroadcastFire(SOCKET_EVENTS.PARTICIPANT_COUNT, { count: 0 });
+    await realtimeBroadcastFire(SOCKET_EVENTS.STATE_RESET, {
+      phase: 1,
+      totalGroups: 0,
+      groupsSubmitted: 0,
+      participantCount: 0,
+      eventCode: null,
+    });
 
     return jsonOk({ ended: true as const });
   } catch (e) {
