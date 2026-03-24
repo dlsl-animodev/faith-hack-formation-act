@@ -17,6 +17,8 @@ function codeFromJoinUrl(url: string): string | undefined {
 
 export function QRDisplay({ eventCode, joinUrl, participantCount }: QRDisplayProps) {
   const displayCode = eventCode ?? codeFromJoinUrl(joinUrl);
+  const vercelUrl = "https://faith-hack-formation-act.vercel.app";
+  const displayManualUrl = joinUrl.replace(/^http:\/\/localhost:3000|^https?:\/\/[^/]+/, vercelUrl);
 
   return (
     <Card className="flex min-h-[70vh] flex-col items-center justify-center gap-8 border-[var(--border)] bg-[var(--bg-base)] py-10 text-center">
@@ -54,7 +56,7 @@ export function QRDisplay({ eventCode, joinUrl, participantCount }: QRDisplayPro
 
       <div className="max-w-xl space-y-2 px-4">
         <p className="font-mono text-xs text-[var(--text-muted)]">manual_url</p>
-        <p className="break-all font-mono text-sm text-[var(--accent-success)]">{joinUrl}</p>
+        <p className="break-all font-mono text-sm text-[var(--accent-success)]">{displayManualUrl}</p>
       </div>
     </Card>
   );
