@@ -19,6 +19,7 @@ export function QRDisplay({ eventCode, joinUrl, participantCount }: QRDisplayPro
   const displayCode = eventCode ?? codeFromJoinUrl(joinUrl);
   const vercelUrl = "https://faith-hack-formation-act.vercel.app";
   const displayManualUrl = joinUrl.replace(/^http:\/\/localhost:3000|^https?:\/\/[^/]+/, vercelUrl);
+  const qrValue = joinUrl.replace(/^http:\/\/localhost:3000|^https?:\/\/[^/]+/, vercelUrl);
 
   return (
     <Card className="flex min-h-[70vh] flex-col items-center justify-center gap-8 border-[var(--border)] bg-[var(--bg-base)] py-10 text-center">
@@ -34,7 +35,7 @@ export function QRDisplay({ eventCode, joinUrl, participantCount }: QRDisplayPro
       <div className="flex w-full max-w-4xl flex-col items-center gap-10 px-4 md:flex-row md:items-start md:justify-center md:gap-12 md:text-left">
         <div className="shrink-0 rounded-3xl bg-white p-6 shadow-glow">
           <QRCodeSVG
-            value={joinUrl}
+            value={qrValue}
             size={320}
             level="H"
             fgColor="#7c6af7"
