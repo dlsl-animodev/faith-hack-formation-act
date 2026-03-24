@@ -11,6 +11,12 @@ interface ActiveGroup {
   name: string;
   color: string;
   submitted: boolean;
+  state: string;
+  memberCount: number;
+  bugCount: number;
+  debugSummary: string | null;
+  completionMessage: string | null;
+  updatedAt: string;
 }
 
 interface ActivePayload {
@@ -118,6 +124,9 @@ export function HostClient() {
         });
         void refresh();
       },
+      onPhaseChanged: () => {
+        void refresh();
+      },
     },
     true
   );
@@ -138,6 +147,8 @@ export function HostClient() {
   const joinUrl = payload?.joinUrl ?? "";
   const submitted = payload?.groupsSubmitted ?? 0;
   const total = payload?.totalGroups ?? 0;
+  const phase = payload?.phase ?? 1;
+  const groups = payload?.groups ?? [];
 
   const piecesWithLock: PuzzlePiece[] = useMemo(
     () =>
@@ -171,6 +182,8 @@ export function HostClient() {
       lockedIds={lockedIds}
       submitted={submitted}
       total={total}
+      phase={phase}
+      groups={groups}
     />
   );
 }
