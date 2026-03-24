@@ -1,9 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
-import { jsonErr, jsonOk } from "@/lib/api-response";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 function groupStateFromPhase(phase: number, submitted: boolean): string {
   if (submitted) {
@@ -28,60 +23,85 @@ function groupStateFromPhase(phase: number, submitted: boolean): string {
   }
 }
 
-export async function GET() {
+export type ActiveEventPayload = {
+  active: boolean;
+  phase: number;
+  totalGroups: number;
+  groupsSubmitted: number;
+  participantCount: number;
+  eventCode: string | null;
+  joinUrl: string | null;
+  eventId?: string | null;
+  groups: Array<{
+    id: string;
+    name: string;
+    color: string;
+    submitted: boolean;
+    state: string;
+    memberCount: number;
+    bugCount: number;
+    debugSummary: string | null;
+    completionMessage: string | null;
+    updatedAt: string;
+  }>;
+};
+
+export async function computeActiveEventPayload(
+  supabase: SupabaseClient,
+): Promise<ActiveEventPayload> {
   try {
-    const supabase = createAdminClient();
+    // Fetch app state — maybeSingle() returns null (not an error) when no row exists
     const { data: state, error } = await supabase
       .from("app_state")
       .select("*")
       .eq("id", 1)
-      .single();
-
-    console.log("[API /events/active] app_state read", {
-      hasState: Boolean(state),
-      hasError: Boolean(error),
-      phase: state?.current_phase ?? null,
-      hasActiveCode: Boolean(state?.active_event_code),
-    });
+      .maybeSingle();
 
     if (error) {
-      console.error("[API /events/active] app_state query error:", error);
-      return jsonErr(error.message, 500);
+      console.error("[computeActiveEventPayload] app_state query error:", error);
+      throw error;
     }
 
-    console.log("State fetched successfully:", state);
-
-    const code = state?.active_event_code;
-
-    if (!code) {
-      console.log(
-        "[API /events/active] No active event code, returning inactive payload",
-      );
-      return jsonOk({
-        active: false as const,
-        phase: state?.current_phase ?? 1,
+    // No app_state row exists yet — return a safe inactive default
+    if (!state) {
+      return {
+        active: false,
+        phase: 1,
         totalGroups: 0,
         groupsSubmitted: 0,
         participantCount: 0,
         eventCode: null,
         joinUrl: null,
         groups: [],
-      });
+      };
     }
 
-    console.log("[API /events/active] Looking up event with code:", code);
+    const code = state.active_event_code;
+
+    // If no active event code, return inactive payload
+    if (!code) {
+      return {
+        active: false,
+        phase: state.current_phase ?? 1,
+        totalGroups: 0,
+        groupsSubmitted: 0,
+        participantCount: 0,
+        eventCode: null,
+        joinUrl: null,
+        groups: [],
+      };
+    }
+
+    // Look up event by code and is_active = true
     const { data: ev } = await supabase
       .from("events")
-      .select("id, event_code, is_active")
+      .select("*")
       .eq("event_code", code)
+      .eq("is_active", true)
       .maybeSingle();
 
-    console.log("[API /events/active] Event lookup result:", ev);
-
     if (!ev) {
-      console.log(
-        "[API /events/active] Event not found, clearing app_state active_event_code",
-      );
+      // Event code in app_state is stale — clear it
       await supabase
         .from("app_state")
         .update({
@@ -89,38 +109,26 @@ export async function GET() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", 1);
-      return jsonOk({
-        active: false as const,
-        phase: state?.current_phase ?? 1,
+
+      return {
+        active: false,
+        phase: state.current_phase ?? 1,
         totalGroups: 0,
         groupsSubmitted: 0,
         participantCount: 0,
         eventCode: null,
         joinUrl: null,
         groups: [],
-      });
+      };
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const joinUrl = `${appUrl.replace(/\/$/, "")}/join/${code}`;
 
-    let groups:
-      | Array<{
-          id: string;
-          name: string;
-          color: string;
-          submitted: boolean;
-          state: string;
-          memberCount: number;
-          bugCount: number;
-          debugSummary: string | null;
-          completionMessage: string | null;
-          updatedAt: string;
-        }>
-      | undefined;
+    let groups: ActiveEventPayload["groups"] = [];
     let participantCount = 0;
+
     if (ev?.id) {
-      console.log("[API /events/active] Fetching groups for event:", ev.id);
       const { data: gRows } = await supabase
         .from("groups")
         .select(
@@ -164,7 +172,7 @@ export async function GET() {
         }
       }
 
-      const currentPhase = state?.current_phase ?? 1;
+      const currentPhase = state.current_phase ?? 1;
       groups = (gRows ?? []).map((g) => ({
         id: g.id,
         name: g.name,
@@ -178,36 +186,26 @@ export async function GET() {
         updatedAt: g.updated_at,
       }));
 
-      console.log("[API /events/active] Groups fetched:", groups);
-
       const { count } = await supabase
         .from("sessions")
         .select("id", { count: "exact", head: true })
         .eq("event_id", ev.id);
       participantCount = count ?? 0;
-      console.log("[API /events/active] Participant count:", participantCount);
     }
 
-    const responsePayload = {
-      active: true as const,
+    return {
+      active: true,
       eventId: ev?.id ?? null,
       eventCode: code,
       joinUrl,
-      phase: state?.current_phase ?? 1,
-      totalGroups: state?.total_groups ?? 0,
-      groupsSubmitted: state?.groups_submitted ?? 0,
-      groups: groups ?? [],
+      phase: state.current_phase ?? 1,
+      totalGroups: state.total_groups ?? 0,
+      groupsSubmitted: state.groups_submitted ?? 0,
+      groups,
       participantCount,
     };
-
-    console.log(
-      "[API /events/active] Returning active event payload:",
-      responsePayload,
-    );
-    return jsonOk(responsePayload);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Server error";
-    console.error("[API /events/active] Catch error:", msg, e);
-    return jsonErr(msg, 500);
+    console.error("[computeActiveEventPayload] Error:", e);
+    throw e;
   }
 }
