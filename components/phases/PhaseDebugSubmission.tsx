@@ -22,6 +22,7 @@ export function PhaseDebugSubmission({
   const [holding, setHolding] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const holdStart = useRef<number | null>(null);
   const raf = useRef<number | null>(null);
@@ -128,7 +129,7 @@ export function PhaseDebugSubmission({
       <header className="space-y-2">
         <p className="font-mono text-xs text-[var(--text-muted)]">phase_04 // deploy</p>
         <h1 className="font-display text-3xl tracking-tight">Ship the summary</h1>
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-[var(--text-secondary)] select-none touch none">
           Leader only: capture what surfaced as a group. Hold the deploy control for 3 seconds to confirm.
         </p>
       </header>
@@ -148,18 +149,42 @@ export function PhaseDebugSubmission({
             <ProgressRing progress={progress} size={132} stroke={10} />
             <button
               type="button"
-              disabled={done || !summary.trim()}
-              onPointerDown={startHold}
-              onPointerUp={endHold}
-              onPointerLeave={endHold}
-              onPointerCancel={endHold}
-              className="absolute flex h-24 w-24 items-center justify-center rounded-full bg-[var(--accent-primary)] font-mono text-xs font-semibold uppercase tracking-widest text-[var(--bg-base)] disabled:opacity-40"
+              disabled={done || isSubmitting || !summary.trim()}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId); 
+                startHold();
+              }}
+              onPointerUp={(e) => {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+                endHold();
+}}
+onPointerCancel={endHold}
+              className={`absolute flex h-24 w-24 items-center justify-center rounded-full bg-[var(--accent-primary)] font-mono text-xs font-semibold uppercase tracking-widest text-[var(--bg-base)] transition-opacity focus:outline-none ${(!done && !isSubmitting && !summary.trim()) ? 'opacity-40' : ''}`}
             >
-              {done ? "live" : "hold"}
+              {done ? (
+                <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="flex flex-col items-center">
+                  <svg className="h-6 w-6 text-green-200 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>done</span>
+                </motion.div>
+              ) : isSubmitting ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent"
+                />
+              ) : (
+                "hold"
+              )}
             </button>
           </div>
-          <p className="font-mono text-xs text-[var(--text-muted)]">
-            press & hold 3s <span className="animate-cursor">▍</span>
+          <p className="font-mono text-xs text-[var(--text-muted)] select-none touch-none">
+            {done ? "Submission complete." : isSubmitting ? "Submitting..." : (
+              <>
+                press & hold 3s <span className="animate-cursor">▍</span>
+              </>
+            )}
           </p>
         </div>
 
