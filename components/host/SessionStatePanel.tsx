@@ -133,7 +133,13 @@ export function SessionStatePanel({
             Waiting for teams to form…
           </p>
         ) : (
-          <div className="max-h-[56vh] space-y-3 overflow-auto pr-1">
+          <div className="max-h-[56vh] space-y-3 overflow-y-auto pr-2 
+          [&::-webkit-scrollbar]:w-1.5 
+          [&::-webkit-scrollbar-track]:bg-transparent 
+          [&::-webkit-scrollbar-thumb]:rounded-full 
+          [&::-webkit-scrollbar-thumb]:bg-[var(--border)] 
+          hover:[&::-webkit-scrollbar-thumb]:bg-[var(--text-muted)]"
+>
             {groups.map((g) => {
               const preview = clampText(g.debugSummary);
               const completionPreview = clampText(g.completionMessage, 180);
