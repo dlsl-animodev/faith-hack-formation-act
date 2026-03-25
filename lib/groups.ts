@@ -19,6 +19,17 @@ function groupLabel(index: number): string {
   return `Node ${String(n).padStart(2, "0")}`;
 }
 
+export const FIXED_GROUP_NAMES = [
+  "Slick Python",
+  "Java Juggernauts",
+  "C++ Commanders",
+  "Rust Raiders",
+  "Swift Strikers",
+  "Kotlin Knights",
+  "Go Gurus",
+  "JavaScript Ninjas"
+] as const;
+
 export async function assignSessionToGroup(
   supabase: SupabaseClient,
   eventId: string
@@ -39,8 +50,27 @@ export async function assignSessionToGroup(
     throw new Error(groupsError.message);
   }
 
-  const list = groups ?? [];
+  let list = groups ?? [];
 
+  if (list.length === 0) {
+    const toInsert = FIXED_GROUP_NAMES.map((name, index) => ({
+      event_id: eventId,
+      name,
+      color: GROUP_COLOR_PALETTE[index % GROUP_COLOR_PALETTE.length],
+    }));
+
+    const { data: createdGroups, error: insertError } = await supabase
+      .from("groups")
+      .insert(toInsert)
+      .select("id, name, color");
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+    list = createdGroups ?? [];
+  }
+
+  // Find member counts for all groups to determine the new position
   const counts = await Promise.all(
     list.map(async (g) => {
       const { count, error } = await supabase
@@ -52,42 +82,25 @@ export async function assignSessionToGroup(
     })
   );
 
-  const withRoom = counts.find((c) => c.count < 5);
+  // Prioritize groups with the lowest number of members
+  const minCount = Math.min(...counts.map((c) => c.count));
+  const candidateGroups = counts.filter((c) => c.count === minCount);
 
-  if (withRoom) {
-    const position = withRoom.count + 1;
-    return {
-      groupId: withRoom.group.id,
-      groupName: withRoom.group.name,
-      groupColor: withRoom.group.color,
-      position,
-      memberCount: position,
-    };
-  }
-
-  const nextIndex = list.length;
-  const name = groupLabel(nextIndex);
-  const color = GROUP_COLOR_PALETTE[nextIndex % GROUP_COLOR_PALETTE.length];
-
-  const { data: created, error: insertError } = await supabase
-    .from("groups")
-    .insert({ event_id: eventId, name, color })
-    .select("id, name, color")
-    .single();
-
-  if (insertError || !created) {
-    throw new Error(insertError?.message ?? "Failed to create group");
-  }
+  // Randomly assign to one of the candidate groups
+  const randomIndex = Math.floor(Math.random() * candidateGroups.length);
+  const chosen = candidateGroups[randomIndex];
+  
+  const chosenGroup = chosen.group;
+  const position = chosen.count + 1;
 
   return {
-    groupId: created.id,
-    groupName: created.name,
-    groupColor: created.color,
-    position: 1,
-    memberCount: 1,
+    groupId: chosenGroup.id,
+    groupName: chosenGroup.name,
+    groupColor: chosenGroup.color,
+    position,
+    memberCount: position,
   };
 }
-
 export async function getGroupMemberCount(
   supabase: SupabaseClient,
   groupId: string
