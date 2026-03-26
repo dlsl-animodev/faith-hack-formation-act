@@ -29,20 +29,67 @@ export function PuzzleGrid({ pieces, cols, rows, lockedIds, large }: PuzzleGridP
             key={p.id}
             layoutId={p.groupId ? `piece-${p.groupId}` : p.id}
             transition={{ type: "spring", stiffness: 200, damping: 22 }}
-            className={`flex min-h-[72px] flex-col justify-between rounded-xl border p-3 font-mono text-[10px] uppercase tracking-wide sm:min-h-[96px] sm:text-xs ${
+            className={`relative flex min-h-[72px] flex-col justify-between rounded-xl border p-3 font-mono text-[10px] uppercase tracking-wide sm:min-h-[96px] sm:text-xs ${
               ghost
                 ? "border-dashed border-[var(--border)] bg-[var(--bg-surface)]/60 text-[var(--text-muted)]"
+                : locked
+                ? "border-[var(--accent-primary)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--accent-primary)]/10 text-[var(--text-primary)]"
                 : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
             }`}
             style={{
-              borderColor: p.groupColor ?? undefined,
-              boxShadow: locked && p.groupColor ? `0 0 24px ${p.groupColor}44` : undefined,
+              borderColor: locked ? p.groupColor ?? "var(--accent-primary)" : p.groupColor ?? undefined,
+              boxShadow: locked && p.groupColor 
+                ? `0 0 32px ${p.groupColor}66, 0 0 64px ${p.groupColor}33, inset 0 0 20px ${p.groupColor}22`
+                : ghost 
+                ? "none"
+                : p.groupColor 
+                ? `0 0 16px ${p.groupColor}44` 
+                : undefined,
             }}
           >
-            <span className="truncate">{p.groupName ?? "awaiting"}</span>
-            <span className="text-[var(--text-muted)]">
-              {locked ? "locked" : ghost ? "ghost" : "pending"}
-            </span>
+            {locked && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute top-2 right-2"
+              >
+                <svg 
+                  className="h-3 w-3 text-[var(--accent-primary)]" 
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </motion.div>
+            )}
+            
+            <div className="flex flex-col justify-between h-full">
+              <span className={`truncate ${locked ? 'font-semibold' : ''}`}>
+                {p.groupName ?? "awaiting"}
+              </span>
+              
+              <div className="flex items-center justify-between">
+                <span className={`text-[var(--text-muted)] ${locked ? 'text-[var(--accent-primary)] font-semibold' : ''}`}>
+                  {locked ? "locked" : ghost ? "ghost" : "pending"}
+                </span>
+                
+                {locked && (
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: "auto" }}
+                    className="flex items-center gap-1"
+                  >
+                    <div className="h-1.5 w-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse delay-75" />
+                    <div className="h-1.5 w-1.5 rounded-full bg-[var(--accent-primary)] animate-pulse delay-150" />
+                  </motion.div>
+                )}
+              </div>
+            </div>
           </motion.div>
         );
       })}
