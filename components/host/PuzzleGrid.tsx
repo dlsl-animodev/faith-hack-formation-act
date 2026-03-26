@@ -33,11 +33,11 @@ export function PuzzleGrid({ pieces, cols, rows, lockedIds, large }: PuzzleGridP
               ghost
                 ? "border-dashed border-[var(--border)] bg-[var(--bg-surface)]/60 text-[var(--text-muted)]"
                 : locked
-                ? "border-[var(--accent-primary)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--accent-primary)]/10 text-[var(--text-primary)]"
+                ? "border-purple-500 bg-yellow-600 text-black"
                 : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)]"
             }`}
             style={{
-              borderColor: locked ? p.groupColor ?? "var(--accent-primary)" : p.groupColor ?? undefined,
+              borderColor: locked ? "rgb(168 85 247)" : p.groupColor ?? undefined,
               boxShadow: locked && p.groupColor 
                 ? `0 0 32px ${p.groupColor}66, 0 0 64px ${p.groupColor}33, inset 0 0 20px ${p.groupColor}22`
                 : ghost 
