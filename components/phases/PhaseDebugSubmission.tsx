@@ -118,7 +118,9 @@ export function PhaseDebugSubmission({
                   className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent"
                 />
               </motion.div>
-            ) : null}
+            ) : (
+              <span className="text-center text-[10px] leading-tight tracking-normal lowercase px-2">click to<br/>deploy</span>
+            )}
           </button>
           <p className="font-mono text-xs text-[var(--text-muted)] select-none touch-none">
             {done ? "Submission complete." : isSubmitting ? "Submitting..." : (
