@@ -23,11 +23,6 @@ export const FIXED_GROUP_NAMES = [
   "Slick Python",
   "Java Juggernauts",
   "C++ Commanders",
-  "Rust Raiders",
-  "Swift Strikers",
-  "Kotlin Knights",
-  "Go Gurus",
-  "JavaScript Ninjas"
 ] as const;
 
 export async function assignSessionToGroup(
