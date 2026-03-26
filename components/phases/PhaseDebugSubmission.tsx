@@ -1,11 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/Card";
-import { ProgressRing } from "@/components/ui/ProgressRing";
-
-const HOLD_MS = 3000;
 
 interface PhaseDebugSubmissionProps {
   sessionId: string;
@@ -19,52 +16,18 @@ export function PhaseDebugSubmission({
   isLeader,
 }: PhaseDebugSubmissionProps) {
   const [summary, setSummary] = useState("");
-  const [holding, setHolding] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const holdStart = useRef<number | null>(null);
-  const raf = useRef<number | null>(null);
-  const summaryRef = useRef(summary);
-  summaryRef.current = summary;
 
-  const clearRaf = () => {
-    if (raf.current != null) {
-      cancelAnimationFrame(raf.current);
-      raf.current = null;
-    }
-  };
-
-  const tick = useCallback(() => {
-    if (holdStart.current == null) return;
-    const elapsed = Date.now() - holdStart.current;
-    const p = Math.min(1, elapsed / HOLD_MS);
-    setProgress(p);
-    if (p >= 1) {
-      clearRaf();
-      setHolding(false);
-      setProgress(0);
-      void submit(summaryRef.current);
-      return;
-    }
-    raf.current = requestAnimationFrame(tick);
-    // tick only reads summaryRef + submit; submit is stable enough for hold animation
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hold loop uses refs
-  }, []);
-
-  useEffect(() => {
-    return () => clearRaf();
-  }, []);
-
-  const submit = async (text: string) => {
+  const submit = async () => {
     setError(null);
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/groups/${groupId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, summary: text }),
+        body: JSON.stringify({ sessionId, summary }),
       });
       const data: unknown = await res.json();
       if (
@@ -89,21 +52,6 @@ export function PhaseDebugSubmission({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const startHold = () => {
-    if (!summary.trim() || done) return;
-    setHolding(true);
-    holdStart.current = Date.now();
-    raf.current = requestAnimationFrame(tick);
-  };
-
-  const endHold = () => {
-    if (!holding) return;
-    clearRaf();
-    holdStart.current = null;
-    setHolding(false);
-    setProgress(0);
   };
 
   if (!isLeader) {
@@ -132,8 +80,8 @@ export function PhaseDebugSubmission({
       <header className="space-y-2">
         <p className="font-mono text-xs text-[var(--text-muted)]">phase_04 // deploy</p>
         <h1 className="font-display text-3xl tracking-tight">Ship the summary</h1>
-        <p className="text-sm text-[var(--text-secondary)] select-none touch none">
-          Leader only: capture what surfaced as a group. Hold the deploy control for 3 seconds to confirm.
+        <p className="text-sm text-[var(--text-secondary)] select-none touch-none">
+          Leader only: capture what surfaced as a group. Click deploy to confirm.
         </p>
       </header>
 
@@ -147,44 +95,35 @@ export function PhaseDebugSubmission({
           className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 font-mono text-sm text-[var(--text-primary)] outline-none ring-[var(--accent-primary)] focus:ring-2"
         />
 
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative flex items-center justify-center">
-            <ProgressRing progress={progress} size={132} stroke={10} />
-            <button
-              type="button"
-              disabled={done || isSubmitting || !summary.trim()}
-              onPointerDown={(e) => {
-                e.currentTarget.setPointerCapture(e.pointerId); 
-                startHold();
-              }}
-              onPointerUp={(e) => {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-                endHold();
-}}
-onPointerCancel={endHold}
-              className={`absolute flex h-24 w-24 items-center justify-center rounded-full bg-[var(--accent-primary)] font-mono text-xs font-semibold uppercase tracking-widest text-[var(--bg-base)] transition-opacity focus:outline-none ${(!done && !isSubmitting && !summary.trim()) ? 'opacity-40' : ''}`}
-            >
-              {done ? (
-                <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="flex flex-col items-center">
-                  <svg className="h-6 w-6 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </motion.div>
-              ) : isSubmitting ? (
-                <motion.div className="flex flex-col items-center">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent"
-                  />
-                </motion.div>
-              ) : null}
-            </button>
-          </div>
+        <div className="flex flex-col items-center gap-4 py-4">
+          <button
+            type="button"
+            disabled={done || isSubmitting || !summary.trim()}
+            onClick={submit}
+            className={`flex h-24 w-24 items-center justify-center rounded-full bg-[var(--accent-primary)] font-mono text-xs font-semibold uppercase tracking-widest text-[var(--bg-base)] transition-all focus:outline-none ${
+              !done && !isSubmitting && !summary.trim() ? "opacity-40" : "hover:scale-105 active:scale-95 cursor-pointer"
+            }`}
+          >
+            {done ? (
+              <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="flex flex-col items-center">
+                <svg className="h-6 w-6 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </motion.div>
+            ) : isSubmitting ? (
+              <motion.div className="flex flex-col items-center">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent"
+                />
+              </motion.div>
+            ) : null}
+          </button>
           <p className="font-mono text-xs text-[var(--text-muted)] select-none touch-none">
             {done ? "Submission complete." : isSubmitting ? "Submitting..." : (
               <>
-                press & hold 3s <span className="animate-cursor">▍</span>
+                click to deploy <span className="animate-cursor">▍</span>
               </>
             )}
           </p>
