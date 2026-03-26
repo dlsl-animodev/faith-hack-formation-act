@@ -59,6 +59,7 @@ export function PhaseDebugSubmission({
 
   const submit = async (text: string) => {
     setError(null);
+    setIsSubmitting(true);
     try {
       const res = await fetch(`/api/groups/${groupId}/submit`, {
         method: "POST",
@@ -85,6 +86,8 @@ export function PhaseDebugSubmission({
       }
     } catch {
       setError("Network error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -169,11 +172,14 @@ onPointerCancel={endHold}
                   <span>done</span>
                 </motion.div>
               ) : isSubmitting ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                  className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent"
-                />
+                <motion.div className="flex flex-col items-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                    className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent mb-1"
+                  />
+                  <span className="text-xs">sending</span>
+                </motion.div>
               ) : (
                 "hold"
               )}
