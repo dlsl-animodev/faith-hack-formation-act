@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BUG_LIST } from "@/lib/bug-list";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useToast } from "@/components/ui/Toast";
 
 export interface BugSelection {
   id: string;
@@ -27,6 +28,7 @@ export function PhaseBugChecklist({
   const [items, setItems] = useState<BugSelection[]>(() => initialSelected);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { addToast, ToastContainer } = useToast();
 
   const curatedIds = useMemo(
     () => new Set<string>(BUG_LIST.map((b) => b.id)),
@@ -75,6 +77,7 @@ export function PhaseBugChecklist({
         "success" in data &&
         (data as { success: boolean }).success
       ) {
+        addToast("Checklist saved successfully!", "success");
         onSaved?.();
       } else {
         const err =
@@ -177,6 +180,8 @@ export function PhaseBugChecklist({
           {saving ? "committing…" : "Save checklist"}
         </Button>
       </Card>
+      
+      <ToastContainer />
     </motion.div>
   );
 }
