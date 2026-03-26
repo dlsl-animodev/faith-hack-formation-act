@@ -166,23 +166,19 @@ onPointerCancel={endHold}
             >
               {done ? (
                 <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="flex flex-col items-center">
-                  <svg className="h-6 w-6 text-green-200 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-6 w-6 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>done</span>
                 </motion.div>
               ) : isSubmitting ? (
                 <motion.div className="flex flex-col items-center">
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent mb-1"
+                    className="h-6 w-6 rounded-full border-2 border-[var(--bg-base)] border-t-transparent"
                   />
-                  <span className="text-xs">sending</span>
                 </motion.div>
-              ) : (
-                "hold"
-              )}
+              ) : null}
             </button>
           </div>
           <p className="font-mono text-xs text-[var(--text-muted)] select-none touch-none">
